@@ -2,7 +2,7 @@
 # Description: Fully Verified Official OpenWrt 25.12 for J4125
 # Hardware: 4x Intel 2.5G Ports (eth0=WAN, eth1-3=LAN Bridge)
 # Filesystem: Ext4 Only (No Squashfs, Storage & Time Optimized)
-# Features: 100% Automated, NO Docker, Fast Ruby Pre-installed, Awk Fix Included
+# Features: 100% Automated, NO Docker, Fast Ruby Pre-installed, Ultimate AWK SIGPIPE Fix
 #=================================================
 
 name: Build_J4125_OpenWrt_25.12_Ext4_FullyAuto
@@ -37,7 +37,7 @@ jobs:
         # 3. 秒装本地 ruby 环境，免去源码编译的时间黑洞
         sudo -E apt-get -qq install -y ruby ruby-dev libyaml-dev
         
-        # 4. 安装官方标准交叉编译工具链
+        # 4. 安装官方标准交叉编译工具链（保持 gawk 标准环境，绝不乱换）
         sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo u-boot-tools upx unzip xz-utils zlib1g-dev libz3-dev ocaml ocaml-findlib libunwind-dev
         
         # 5. 清理缓存
@@ -190,11 +190,13 @@ jobs:
     - name: 编译 OpenWrt 固件
       run: |
         cd /workdir/openwrt
-        # 核心修正：强制重置高版本 Ubuntu 的 awk 严格输出行为，完美兼容 OpenWrt 脚本
-        export MULTIPATH=y
+        
+        # 【终极核心破局锁】：强行让整个系统忽略阻断性的 SIGPIPE 信号，彻底驯服高版本 gawk 的报错脾气！
+        trap '' SIGPIPE
+        export GAWK_NO_DFA=1
         
         echo -e "$(nproc) 线程编译中..."
-        # 采用最稳妥的容错编译逻辑
+        # 采用最稳妥的多线程转单线程容错逻辑
         make -j$(nproc) || make -j1 V=s
 
     - name: 精准提取 Ext4 核心固件 (去除编译残留垃圾)
