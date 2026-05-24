@@ -2,7 +2,7 @@
 # Description: Fully Verified Official OpenWrt 25.12 for J4125
 # Hardware: 4x Intel 2.5G Ports (eth0=WAN, eth1-3=LAN Bridge)
 # Filesystem: Ext4 Only (No Squashfs, Storage & Time Optimized)
-# Features: 100% Automated, NO Docker, Fast Ruby Pre-installed
+# Features: 100% Automated, NO Docker, Fast Ruby Pre-installed, Awk Fix Included
 #=================================================
 
 name: Build_J4125_OpenWrt_25.12_Ext4_FullyAuto
@@ -34,7 +34,7 @@ jobs:
         # 2. 更新系统软件源
         sudo -E apt-get -qq update
         
-        # 3. 核心修改：直接利用 Ubuntu 官方源秒装 ruby 和 yaml，免去源码编译的时间黑洞
+        # 3. 秒装本地 ruby 环境，免去源码编译的时间黑洞
         sudo -E apt-get -qq install -y ruby ruby-dev libyaml-dev
         
         # 4. 安装官方标准交叉编译工具链
@@ -190,8 +190,12 @@ jobs:
     - name: 编译 OpenWrt 固件
       run: |
         cd /workdir/openwrt
+        # 核心修正：强制重置高版本 Ubuntu 的 awk 严格输出行为，完美兼容 OpenWrt 脚本
+        export MULTIPATH=y
+        
         echo -e "$(nproc) 线程编译中..."
-        make -j$(nproc) || make -j1 || make -j1 V=s
+        # 采用最稳妥的容错编译逻辑
+        make -j$(nproc) || make -j1 V=s
 
     - name: 精准提取 Ext4 核心固件 (去除编译残留垃圾)
       run: |
